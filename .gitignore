@@ -22,11 +22,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
-
 # Generated vector database
-# Ignore the folder contents by default
+vectorstore/
+!vectorstore/
 vectorstore/*
-
-# Include FAISS index files required for deployment
 !vectorstore/index.faiss
 !vectorstore/index.pkl
