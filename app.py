@@ -1,125 +1,246 @@
+import os
+import uuid
+import requests
 import streamlit as st
 
-from langchain_core.messages import HumanMessage, AIMessage
-from src.rag_pipeline import rag_chain
+from dotenv import load_dotenv
 
+load_dotenv()
 
-# 1. Page Configuration
+# -------------------------------
+# Configuration
+# -------------------------------
+
+API_URL = os.getenv(
+    "RAG_API_URL",
+    "http://127.0.0.1:8000"
+).rstrip("/")
+
 st.set_page_config(
-    page_title="Conversational RAG Chatbot",
+    page_title="Advanced RAG Chatbot",
     page_icon="🤖",
     layout="centered"
 )
 
+# -------------------------------
+# Custom Dark Theme
+# -------------------------------
 
-# 2. Custom Styling
 st.markdown("""
 <style>
-    .main {
-        background-color: #f5f7fb;
+    .stApp {
+        background-color: #0e1117;
+        color: #f1f5f9;
     }
 
-    .stChatMessage {
-        border-radius: 12px;
+    [data-testid="stSidebar"] {
+        background-color: #161b22;
+    }
+
+    [data-testid="stHeader"] {
+        background-color: #0e1117;
+    }
+
+    h1, h2, h3, p, label {
+        color: #f1f5f9;
     }
 
     h1 {
-        color: #2563eb;
         text-align: center;
     }
 
     .subtitle {
         text-align: center;
-        color: gray;
+        color: #a1a1aa;
         font-size: 16px;
+    }
+
+    [data-testid="stChatMessage"] {
+        background-color: #1c2430;
+        border: 1px solid #303b4b;
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    [data-testid="stChatInput"] {
+        background-color: #1c2430;
+        border: 1px solid #303b4b;
+        border-radius: 12px;
+    }
+
+    [data-testid="stChatInput"] textarea {
+        color: #ffffff;
+        caret-color: #ffffff;
+    }
+
+    [data-testid="stChatInput"] textarea::placeholder {
+        color: #a1a1aa;
+    }
+
+    .stButton button {
+        background-color: #2563eb;
+        color: white;
+        border-radius: 8px;
+        border: none;
+    }
+
+    .stButton button:hover {
+        background-color: #1d4ed8;
+        color: white;
+    }
+
+    [data-testid="stMarkdownContainer"] {
+        color: #f1f5f9;
+    }
+
+    hr {
+        border-color: #303b4b;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# -------------------------------
+# Header
+# -------------------------------
 
-# 3. Application Header
-st.title("🤖 Conversational RAG Chatbot")
+st.title("🤖 Advanced RAG Chatbot")
 
 st.markdown(
-    '<p class="subtitle">Ask questions about your company policy documents</p>',
+    '<p class="subtitle">'
+    'Ask questions about your company policy documents'
+    '</p>',
     unsafe_allow_html=True
 )
 
 st.divider()
 
+# -------------------------------
+# Session Initialization
+# -------------------------------
 
-# 4. Initialize Chat History
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# -------------------------------
+# Sidebar
+# -------------------------------
 
-# 5. Sidebar
 with st.sidebar:
+
     st.header("⚙️ Settings")
 
     st.write("**Knowledge Base:**")
-    st.success("Company Policy PDF")
+    st.success("Company Policy Documents")
 
     st.divider()
 
+    st.caption("Backend Connection")
+    st.code(API_URL)
+
     if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.chat_history = []
-        st.session_state.messages = []
-        st.rerun()
 
-    st.caption("Powered by LangChain + FAISS")
+        try:
+            response = requests.delete(
+                f"{API_URL}/clear-history/"
+                f"{st.session_state.session_id}",
+                timeout=15
+            )
 
+            response.raise_for_status()
 
-# 6. Display Previous Messages
+            st.session_state.messages = []
+            st.session_state.session_id = str(uuid.uuid4())
+
+            st.success("Conversation cleared.")
+            st.rerun()
+
+        except requests.RequestException as e:
+            st.error(f"Could not clear chat: {e}")
+
+    st.divider()
+
+    st.caption(
+        "Powered by FastAPI, LangChain, Supabase and Groq"
+    )
+
+# -------------------------------
+# Display Chat History
+# -------------------------------
+
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# -------------------------------
+# Chat Input
+# -------------------------------
 
-# 7. User Input
-question = st.chat_input("Ask something about company policies...")
+question = st.chat_input(
+    "Ask something about company policies..."
+)
 
 if question:
 
-    # Display user question
-    st.chat_message("user").markdown(question)
-
-    # Store user message
     st.session_state.messages.append({
         "role": "user",
         "content": question
     })
 
-    # Generate AI response
+    with st.chat_message("user"):
+        st.markdown(question)
+
     with st.chat_message("assistant"):
 
-        with st.spinner("Searching documents and generating answer..."):
+        with st.spinner(
+            "Searching documents and generating answer..."
+        ):
 
             try:
-                answer = rag_chain.invoke({
-                    "input": question,
-                    "chat_history": st.session_state.chat_history[-10:]
-                })
+
+                response = requests.post(
+                    f"{API_URL}/chat",
+                    json={
+                        "session_id": st.session_state.session_id,
+                        "question": question
+                    },
+                    timeout=180
+                )
+
+                response.raise_for_status()
+
+                data = response.json()
+                answer = data["answer"]
 
                 st.markdown(answer)
-
-                # Store conversation history
-                st.session_state.chat_history.append(
-                    HumanMessage(content=question)
-                )
-
-                st.session_state.chat_history.append(
-                    AIMessage(content=answer)
-                )
 
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": answer
                 })
 
-            except Exception as e:
-                st.error(f"Something went wrong: {str(e)}")
+            except requests.exceptions.Timeout:
+
+                st.error(
+                    "The request timed out. Please try again."
+                )
+
+            except requests.exceptions.ConnectionError:
+
+                st.error(
+                    "Cannot connect to the RAG backend. "
+                    "Please check the API service."
+                )
+
+            except requests.exceptions.HTTPError as e:
+
+                st.error(
+                    f"Backend returned an error: {e.response.text}"
+                )
+
+            except (requests.RequestException, KeyError, ValueError) as e:
+
+                st.error(f"Something went wrong: {e}")
