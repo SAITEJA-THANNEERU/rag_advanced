@@ -24,4 +24,9 @@ Thumbs.db
 
 
 # Generated vector database
-vectorstore/
+# Ignore the folder contents by default
+vectorstore/*
+
+# Include FAISS index files required for deployment
+!vectorstore/index.faiss
+!vectorstore/index.pkl
