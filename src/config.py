@@ -1,12 +1,16 @@
 import os
 from dotenv import load_dotenv
+
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+
 from src.supabase_client import supabase
+
 
 # Load environment variables
 load_dotenv()
+
 
 # Initialize embeddings
 embeddings = HuggingFaceEmbeddings(
@@ -17,7 +21,7 @@ embeddings = HuggingFaceEmbeddings(
 # Custom Supabase Retriever
 class SupabaseRetriever:
 
-    def __init__(self, k=3):
+    def __init__(self, k=5):
         self.k = k
 
     def invoke(self, query):
@@ -25,25 +29,26 @@ class SupabaseRetriever:
         # Generate query embedding
         query_embedding = embeddings.embed_query(query)
 
-        # Search Supabase using pgvector
+        # Retrieve only FactoryOps documents
         response = supabase.rpc(
             "match_documents",
             {
                 "query_embedding": query_embedding,
                 "match_count": self.k,
-                "filter": {}
+                "filter": {
+                    "corpus": "factoryops"
+                }
             }
         ).execute()
 
-        # Convert results into LangChain Documents
         documents = []
 
-        for item in response.data:
+        for item in response.data or []:
             documents.append(
                 Document(
                     page_content=item["content"],
                     metadata={
-                        **item["metadata"],
+                        **(item.get("metadata") or {}),
                         "similarity": item["similarity"],
                         "id": item["id"]
                     }
@@ -54,10 +59,10 @@ class SupabaseRetriever:
 
 
 # Create retriever
-retriever = SupabaseRetriever(k=3)
+retriever = SupabaseRetriever(k=5)
 
 
-# Initialize LLM
+# Initialize Groq LLM
 llm = ChatGroq(
     model="openai/gpt-oss-20b",
     temperature=0,

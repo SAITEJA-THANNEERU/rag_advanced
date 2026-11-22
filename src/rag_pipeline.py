@@ -1,7 +1,8 @@
 from src.config import retriever
+
 from langchain_core.runnables import RunnableLambda
 
-from src.chains import(
+from src.chains import (
     contextualize_chain,
     document_answer_chain,
     intent_chain,
@@ -10,91 +11,121 @@ from src.chains import(
 )
 
 
+# ==========================================
+# DOCUMENT RETRIEVAL
+# ==========================================
+
 def retrieve_documents(inputs):
 
-    # 1. Rewrite the question
-
-    standalone_question=contextualize_chain.invoke(
+    # 1. Rewrite the question using chat history
+    standalone_question = contextualize_chain.invoke(
         {
-            "input":inputs["input"],
-            "chat_history":inputs["chat_history"]
+            "input": inputs["input"],
+            "chat_history": inputs["chat_history"]
         }
     )
 
-    print("\n Rewritten Question:",standalone_question)
+    print("\nRewritten Question:", standalone_question)
 
-    # Retrieve relevant documents
+    # 2. Retrieve relevant FactoryOps documents
+    documents = retriever.invoke(standalone_question)
 
-    documents=retriever.invoke(standalone_question)
+    print("\nRetrieved Documents:", len(documents))
 
-    # Combine document chunks
+    # 3. Handle empty retrieval
+    if not documents:
+        return (
+            "I couldn't find relevant information in the "
+            "FactoryOps knowledge base to answer this question."
+        )
 
-    context="\n\n".join(
-        [doc.page_content for doc in documents]
+    # 4. Build context
+    context = "\n\n".join(
+        [
+            f"""
+            Source: {doc.metadata.get('source', 'Unknown')}
+            Content:
+            {doc.page_content}
+            """
+            for doc in documents
+        ]
     )
 
-    # 4. Handle Emplty retrieval
-    if not context.strip():
-        return "I dont know based on the provided document."
-
-    # 5. Generate The document based Answer
-
-    answer=document_answer_chain.invoke(
+    # 5. Generate grounded answer
+    answer = document_answer_chain.invoke(
         {
-        "input":standalone_question,
-        "context":context
+            "input": standalone_question,
+            "context": context
         }
     )
 
     return answer
 
 
+# ==========================================
+# QUERY ROUTING
+# ==========================================
 
 def route_request(inputs):
 
-    # 1. Get the user question
+    question = inputs["input"]
+    history = inputs.get("chat_history", [])
 
-    question=inputs["input"]
-    history=inputs["chat_history"]
-
-    # 2. Identifying the Intent
-
-    intent=intent_chain.invoke(
+    # 1. Identify user intent
+    intent = intent_chain.invoke(
         {
-            "input":question,
-            "chat_history":history
+            "input": question,
+            "chat_history": history
         }
     ).strip().upper()
 
-    print("\nDetected Intent:",intent)
+    print("\nDetected Intent:", intent)
 
-    # Document Route
+    # 2. Route document-related questions
+    if intent == "DOCUMENT":
 
-    if intent=="DOCUMENT":
-        return retrieve_documents(inputs)
+        return retrieve_documents(
+            {
+                "input": question,
+                "chat_history": history
+            }
+        )
 
-    elif intent=="HISTORY":
+    # 3. Route conversation-history questions
+    elif intent == "HISTORY":
+
         return history_answer_chain.invoke(
             {
-                "input":question,
-                "chat_history":history
-            }
-        )
-    
-    elif intent=="GENERAL":
-        return general_chain.invoke(
-            {
-                "input":question,
-                "chat_history":history
-            }
-        )
-    
-    else:
-        return general_chain.invoke(
-            {
-                "input":question,
-                "chat_history":history
+                "input": question,
+                "chat_history": history
             }
         )
 
-rag_chain=RunnableLambda(route_request)
+    # 4. Route general conversation
+    elif intent == "GENERAL":
+
+        return general_chain.invoke(
+            {
+                "input": question,
+                "chat_history": history
+            }
+        )
+
+    # 5. Fallback
+    else:
+
+        print("Unknown intent. Using general chain.")
+
+        return general_chain.invoke(
+            {
+                "input": question,
+                "chat_history": history
+            }
+        )
+
+
+# ==========================================
+# RAG CHAIN
+# ==========================================
+
+rag_chain = RunnableLambda(route_request)
