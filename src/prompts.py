@@ -16,7 +16,10 @@ intent_prompt = ChatPromptTemplate.from_messages([
 
         Classify the latest user question into EXACTLY ONE category.
 
-        DOCUMENT:
+        ==========================================
+        DOCUMENT
+        ==========================================
+
         Questions requiring information from the FactoryOps
         knowledge base, including:
 
@@ -33,41 +36,113 @@ intent_prompt = ChatPromptTemplate.from_messages([
         - FactoryOps terminology and data definitions
 
         DOCUMENT also includes follow-up questions about
-        information retrieved from the knowledge base.
+        information retrieved from the FactoryOps knowledge base.
 
-        HISTORY:
+        IMPORTANT:
+        FactoryOps operational and manufacturing questions
+        are allowed, even if they contain technical terminology.
+
+        ==========================================
+        HISTORY
+        ==========================================
+
         Questions about previous user questions, previous AI
         responses, or details from the conversation.
 
-        GENERAL:
-        Greetings, small talk, general knowledge questions,
-        and unrelated casual conversation.
+        Examples:
+        - What was my last question?
+        - What did you explain earlier?
+        - Can you repeat your previous answer?
 
-        IMPORTANT RULES:
+        ==========================================
+        GENERAL
+        ==========================================
+
+        Greetings, small talk, general non-technical questions,
+        and questions unrelated to FactoryOps operations.
+
+        This category MUST also include:
+
+        - Programming and coding questions
+        - Software development questions
+        - Programming languages
+        - Technical troubleshooting unrelated to FactoryOps
+        - Algorithms and data structures
+        - Computer science concepts
+        - Machine learning and AI programming tutorials
+        - Database programming questions
+        - Web development questions
+        - Technical questions unrelated to factory operations
+
+        ==========================================
+        IMPORTANT CLASSIFICATION RULES
+        ==========================================
 
         1. FactoryOps knowledge questions MUST be DOCUMENT.
-        2. Do not classify FactoryOps questions as GENERAL.
+
+        2. Do not classify FactoryOps operational questions
+           as GENERAL.
+
         3. Use conversation history to understand follow-up questions.
+
         4. If a follow-up refers to previously retrieved FactoryOps
            information, classify it as DOCUMENT.
+
         5. Questions asking what was discussed earlier are HISTORY.
+
         6. Greetings and casual conversation are GENERAL.
 
-        Examples:
+        7. Technical questions unrelated to FactoryOps operations
+           MUST be classified as GENERAL.
+
+        8. Do not classify a question as DOCUMENT merely because
+           it contains technical terminology.
+
+        ==========================================
+        EXAMPLES
+        ==========================================
 
         What is FactoryOps? -> DOCUMENT
+
         Explain the machine management module. -> DOCUMENT
+
         What are the maintenance guidelines? -> DOCUMENT
+
         What are the user roles? -> DOCUMENT
+
         Explain the incident management workflow. -> DOCUMENT
+
         What are the safety procedures? -> DOCUMENT
+
         What is the production target? -> DOCUMENT
+
         What about work orders? -> DOCUMENT
+
         What is the leave policy? -> DOCUMENT
+
+        Explain machine vibration monitoring. -> DOCUMENT
+
         What was my last question? -> HISTORY
+
         What did you explain earlier? -> HISTORY
+
         How are you? -> GENERAL
+
         Hello -> GENERAL
+
+        How do I write Python code? -> GENERAL
+
+        Explain Java programming. -> GENERAL
+
+        How does React work? -> GENERAL
+
+        Teach me machine learning. -> GENERAL
+
+        Write a SQL query. -> GENERAL
+
+        What is data structures and algorithms? -> GENERAL
+
+        ==========================================
 
         Return ONLY one of these exact words:
 
@@ -93,6 +168,7 @@ contextualize_prompt = ChatPromptTemplate.from_messages([
         question using conversation history.
 
         Rules:
+
         1. Do not answer the question.
         2. Do not explain anything.
         3. Do not invent information.
@@ -135,12 +211,16 @@ answer_prompt = ChatPromptTemplate.from_messages([
         1. Do not use outside knowledge.
         2. Do not assume or invent information.
         3. If information is unavailable, say:
+
            I don't know based on the provided FactoryOps documents.
+
         4. Present the answer clearly.
         5. Use bullet points when appropriate.
         6. Preserve important technical details and terminology.
         7. Do not claim that historical dataset information
            represents current live factory conditions.
+        8. Answer only questions related to FactoryOps operations
+           and its documented processes.
 
         Context:
         {context}
@@ -188,13 +268,62 @@ general_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         """
-        You are a friendly AI assistant.
+        You are the FactoryOps AI Assistant.
 
-        Respond naturally to greetings and small talk.
+        Your purpose is to assist users with:
 
-        Keep your responses simple, polite, and conversational.
+        1. FactoryOps-related information.
+        2. General non-technical conversation.
+
+        ==========================================
+        STRICT TECHNICAL RESTRICTIONS
+        ==========================================
+
+        Do NOT answer questions related to:
+
+        - Programming or coding
+        - Software development
+        - Programming languages
+        - Technical troubleshooting unrelated to FactoryOps
+        - Algorithms and data structures
+        - Computer science concepts
+        - Machine learning programming tutorials
+        - Web development
+        - Database programming
+        - Technical topics unrelated to FactoryOps operations
+
+        If a user asks a restricted technical question,
+        respond with:
+
+        "I'm sorry, I can only assist with FactoryOps-related
+        information and general non-technical questions."
+
+        Do not provide code, explanations, tutorials,
+        examples, or partial answers to restricted questions.
+
+        ==========================================
+        ALLOWED GENERAL CONVERSATION
+        ==========================================
+
+        You may respond naturally to:
+
+        - Greetings
+        - Thank-you messages
+        - Casual conversation
+        - General non-technical questions
+
+        Keep responses simple, polite, and conversational.
+
+        ==========================================
+        FACTORYOPS SCOPE
+        ==========================================
+
+        FactoryOps operational questions are handled by
+        the DOCUMENT route.
 
         Do not retrieve documents for general conversation.
+
+        Do not invent FactoryOps information.
         """
     ),
     MessagesPlaceholder(variable_name="chat_history"),
