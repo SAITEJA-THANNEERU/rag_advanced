@@ -38,9 +38,43 @@ intent_prompt = ChatPromptTemplate.from_messages([
         DOCUMENT also includes follow-up questions about
         information retrieved from the FactoryOps knowledge base.
 
+        ==========================================
+        LIVE_DATA
+        ==========================================
+
+        Questions requiring CURRENT or REAL-TIME information
+        from FactoryOps operational database tables.
+
+        Examples include:
+
+        - Current number of registered machines
+        - List of machine IDs
+        - Current machine status
+        - Machine temperature and vibration readings
+        - Current production output
+        - Production targets and actual production
+        - Current defects and downtime
+        - Open and resolved incidents
+        - Incident severity and status
+        - Pending maintenance activities
+        - Maintenance history
+        - Open and completed work orders
+        - Work order assignments
+        - Spare parts stock availability
+        - Low-stock spare parts
+        - Factory notifications
+        - Current data quality metrics
+
+        LIVE_DATA also includes follow-up questions about
+        previously retrieved live operational data.
+
         IMPORTANT:
-        FactoryOps operational and manufacturing questions
-        are allowed, even if they contain technical terminology.
+        If the user asks about current counts, records, statuses,
+        lists, measurements or operational metrics, classify
+        the question as LIVE_DATA.
+
+        Never classify a request for current database records
+        as DOCUMENT merely because the topic is also documented.
 
         ==========================================
         HISTORY
@@ -50,6 +84,7 @@ intent_prompt = ChatPromptTemplate.from_messages([
         responses, or details from the conversation.
 
         Examples:
+
         - What was my last question?
         - What did you explain earlier?
         - Can you repeat your previous answer?
@@ -78,25 +113,27 @@ intent_prompt = ChatPromptTemplate.from_messages([
         IMPORTANT CLASSIFICATION RULES
         ==========================================
 
-        1. FactoryOps knowledge questions MUST be DOCUMENT.
+        1. Current operational data questions MUST be LIVE_DATA.
 
-        2. Do not classify FactoryOps operational questions
-           as GENERAL.
+        2. Static FactoryOps documentation questions MUST be DOCUMENT.
 
-        3. Use conversation history to understand follow-up questions.
+        3. Do not classify FactoryOps operational questions as GENERAL.
 
-        4. If a follow-up refers to previously retrieved FactoryOps
-           information, classify it as DOCUMENT.
+        4. Use conversation history to understand follow-up questions.
 
-        5. Questions asking what was discussed earlier are HISTORY.
+        5. Follow-ups about retrieved documents are DOCUMENT.
 
-        6. Greetings and casual conversation are GENERAL.
+        6. Follow-ups about retrieved live records are LIVE_DATA.
 
-        7. Technical questions unrelated to FactoryOps operations
+        7. Questions asking what was discussed earlier are HISTORY.
+
+        8. Greetings and casual conversation are GENERAL.
+
+        9. Technical questions unrelated to FactoryOps operations
            MUST be classified as GENERAL.
 
-        8. Do not classify a question as DOCUMENT merely because
-           it contains technical terminology.
+        10. Do not classify a question as DOCUMENT merely because
+            it contains technical terminology.
 
         ==========================================
         EXAMPLES
@@ -114,13 +151,23 @@ intent_prompt = ChatPromptTemplate.from_messages([
 
         What are the safety procedures? -> DOCUMENT
 
-        What is the production target? -> DOCUMENT
-
-        What about work orders? -> DOCUMENT
-
         What is the leave policy? -> DOCUMENT
 
-        Explain machine vibration monitoring. -> DOCUMENT
+        How many machines are currently registered? -> LIVE_DATA
+
+        List all machine IDs. -> LIVE_DATA
+
+        Which machines are currently operational? -> LIVE_DATA
+
+        What is the temperature of machine M001? -> LIVE_DATA
+
+        How many incidents are currently open? -> LIVE_DATA
+
+        Show pending work orders. -> LIVE_DATA
+
+        How many units were produced today? -> LIVE_DATA
+
+        Which spare parts are below minimum stock? -> LIVE_DATA
 
         What was my last question? -> HISTORY
 
@@ -140,13 +187,12 @@ intent_prompt = ChatPromptTemplate.from_messages([
 
         Write a SQL query. -> GENERAL
 
-        What is data structures and algorithms? -> GENERAL
-
         ==========================================
 
         Return ONLY one of these exact words:
 
         DOCUMENT
+        LIVE_DATA
         HISTORY
         GENERAL
         """
@@ -290,7 +336,7 @@ general_prompt = ChatPromptTemplate.from_messages([
         - Machine learning programming tutorials
         - Web development
         - Database programming
-        - Technical topics unrelated to FactoryOps operations
+        - Technical topics unrelated to factory operations
 
         If a user asks a restricted technical question,
         respond with:
@@ -319,7 +365,7 @@ general_prompt = ChatPromptTemplate.from_messages([
         ==========================================
 
         FactoryOps operational questions are handled by
-        the DOCUMENT route.
+        the DOCUMENT or LIVE_DATA routes.
 
         Do not retrieve documents for general conversation.
 
